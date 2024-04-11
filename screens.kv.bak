@@ -1,0 +1,79 @@
+#File name screens.kv
+#:import Factory kivy.factory.Factory
+
+<BoxLayout>:
+    orientation: 'vertical'
+    spacing: 5
+
+<Label>:
+    font_name: 'OpenSans-Regular.ttf'
+
+<Button>:
+    font_name: 'OpenSans-Regular.ttf'
+    font_size: 20
+    background_color: 0, .65, 1, 1
+    #size_hint_y: None
+    #height: 40
+
+ScreenManager:
+    HomeScreen:
+
+<HomeScreen>:
+    name: "Home Screen"
+    BoxLayout:
+        orientation: 'horizontal'
+        padding: 5
+
+        BoxLayout:
+            size_hint_x: None
+            width: 300
+		    Button:
+                text: 'Detect Faces'
+                on_release: root.triger(root.detect_faces)
+
+            Button:
+                text: 'Identify Faces'
+                on_release:
+                    root.triger(root.identify_faces)
+
+            Button:
+                text: 'Glasses + Mustache'
+                on_release:
+                    root.triger(root.glasses)
+
+            Button:
+                text: 'Painter'
+                on_release:
+                    root.triger(root.painter)
+
+
+            Button:
+                text: "Capture Screen"
+                on_release:
+                    root.capture_screen()
+            Button:
+                text: "Capture Video"
+                on_release:
+                    root.capture_video()
+
+            Button:
+                text: "Style Transfer"
+                on_release:
+                    root.triger(root.style_transfer)
+
+
+            Button:
+                text: "Clear"
+                on_release: root.triger(root.update_cam)
+
+
+            Button:
+                text: "Update 'Identifier'?"
+                background_color: 1, 1, 1, 0.5
+                on_release: 
+                    root.update_faces_data()
+
+
+
+        Image:
+            id: cam
