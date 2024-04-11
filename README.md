@@ -1,8 +1,8 @@
 # Smart_Face_Identifier_and_Styler
 
 
-**TL;DR:
-**
+## TL;DR:
+
 
 1- Install requirements.txt file:
 
@@ -14,8 +14,8 @@ pip install -r requirements.txt
 -------------
 
 
-**How to use the application in detail:
-**
+## How to use the application in detail:
+
 
 1. Open cmd in the application directory and type “pip install -r
 requirements.txt” to install the required dependencies to run the
@@ -47,7 +47,9 @@ second from saved styles, press “Style Transfer”. From the keyboard, if
 we
 
 A. Press “n” to load the next neural style transfer model.
+
 B. Press “p” to load the previous neural style transfer model.
+
 C. Press “s” to save the resulting image to the gallery directory.
 
 9. “Clear” button to delete any feature we have used.
@@ -59,8 +61,8 @@ his name and add his picture, then press “Update Identifier”.
 
 -------------------
 
-**Screenshots from the application:
-**
+## Screenshots from the application:
+
 ![image](https://github.com/nooreldeenmagdy/Smart_Face_Identifier_and_Styler/assets/74083059/af1f9346-d25f-4847-8f49-dea6a9a0afe8)
 ![image](https://github.com/nooreldeenmagdy/Smart_Face_Identifier_and_Styler/assets/74083059/768318c8-8a8d-4da8-a545-5dc2868a2c40)
 ![image](https://github.com/nooreldeenmagdy/Smart_Face_Identifier_and_Styler/assets/74083059/4298064b-6e45-4d97-a8cb-1f6a301f6d7c)
