@@ -69,8 +69,8 @@ with open('faces-data.pickle', 'rb') as file:
     faces_data = pickle.load(file)
 
 # Glasses + Mustache files
-glasses = cv.imread("filters/glasses.png", -1)
-mustache = cv.imread('filters/mustache.png',-1)
+#glasses = cv.imread("filters/glasses.png", -1)
+#mustache = cv.imread('filters/mustache.png',-1)
 
 # Painter globals
 # Define the upper and lower boundaries for a color to be considered "Blue"
@@ -175,6 +175,238 @@ class HomeScreen(Screen):
         return ret
 
 
+    
+    
+    
+    
+    # Detection: Detect the human face
+
+    def detect_faces(self, dt):
+        ret, frame = self.capture.read()
+        frame = cv.resize(frame, (1090, 720), interpolation = cv.INTER_AREA)
+        
+        
+       
+        # gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        # faces = face_cascade.detectMultiScale(gray,
+                                             # scaleFactor=1.1,
+                                             # minNeighbors=10,
+                                             # minSize=(100, 100),
+                                             # flags=cv.CASCADE_SCALE_IMAGE)
+
+        # for (x,y,w,h) in faces:
+            # cv.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+
+        mp_drawing = mp.solutions.drawing_utils
+        mp_holistic = mp.solutions.holistic
+        
+        
+        def draw_landmarks(image, results):
+            # Pose
+            mp_drawing.draw_landmarks(
+                image, 
+                results.pose_landmarks,
+                mp_holistic.POSE_CONNECTIONS,
+                mp_drawing.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
+                mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
+            )
+        
+        def mediapipe_detection(frame, model):
+            frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB) # works on RGB not BGR
+            frame.flags.writeable = False # To improve performance can work without it
+            results = model.process(frame) 
+            frame.flags.writeable = True
+            frame = cv.cvtColor(frame, cv.COLOR_RGB2BGR) # Back to BGR
+            return frame, results
+
+        
+        with mp_holistic.Holistic() as holistic:
+
+            h, w, _ = frame.shape
+
+            frame, results = mediapipe_detection(frame, holistic)
+            
+            # Draw landmarks
+            draw_landmarks(frame, results)
+            
+            # Draw Rectangle around the face
+            padding = 30
+            start_point = (int(results.pose_landmarks.landmark[6].x * w)-padding, int(results.pose_landmarks.landmark[6].y * h)-padding)
+            end_point = (int(results.pose_landmarks.landmark[9].x * w)+padding, int(results.pose_landmarks.landmark[9].y * h)+padding)
+            # We multiply by w and h to use the real x and y of the frame
+            
+            if(results.pose_landmarks.landmark[0]):
+                cv.rectangle(frame, start_point, end_point, (255, 0, 0) , 2)
+
+
+        buf = cv.flip(frame, 0)
+        buf = buf.tobytes()
+        texture_f = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
+        texture_f.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+        # display image from the texture
+        self.ids.cam.texture = texture_f
+
+
+ 		# testing
+        #if len(faces) != 0:
+        	
+        	#self.have_face = True
+
+    # Identification: Identify the human name
+
+    
+    def identify_faces(self, dt):
+        ret, frame = self.capture.read()
+        frame = cv.resize(frame, (1090, 720), interpolation = cv.INTER_AREA)
+        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray,
+                                             scaleFactor=1.1,
+                                             minNeighbors=10,
+                                             minSize=(100, 100),
+                                             flags=cv.CASCADE_SCALE_IMAGE)
+        rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+        # the facial embeddings for face in input
+        encodings = face_recognition.face_encodings(rgb)
+        names = []
+
+        # testing
+        if len(faces) != 0:
+        	self.have_face = True
+
+        for encoding in encodings:
+            matches = face_recognition.compare_faces(faces_data["encodings"], encoding)
+            name = "Unknown"
+
+            if True in matches:
+
+                #Find positions at which we get True and store them
+                matched_idxs = [i for (i, b) in enumerate(matches) if b]
+                counts = {}
+				# testing
+                self.saved_face = True
+
+
+                # loop over the matched indexes and maintain a count for each recognized face face
+                for i in matched_idxs:
+                    #Check the names at respective indexes we stored in matched_idxs
+                    name = faces_data["names"][i]
+                    #increase count for the name we got
+                    counts[name] = counts.get(name, 0) + 1
+                #set name which has highest count
+                name = max(counts, key=counts.get)
+ 
+            # update the list of names
+            names.append(name)
+            # loop over the recognized faces
+            for (x, y, w, h), name in zip(faces, names):
+                # draw the predicted face name on the image
+                cv.rectangle(frame, (x, y),(x+w, y+h),(0,255,0),2)
+                cv.rectangle(frame, (x-10, y+h),(x+w+10, y+int(h*1.15)),(0,255,0), -1)
+                cv.putText(frame, name, (x-5, y+int(h*1.11)), cv.FONT_HERSHEY_SIMPLEX, w/250, (255, 255, 255), 2)
+
+        buf = cv.flip(frame, 0)
+        buf = buf.tobytes()
+        texture_f = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr') 
+        texture_f.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+        # display image from the texture
+        self.ids.cam.texture = texture_f 
+
+    
+    # Capturing and saving photos.
+
+    
+    def capture_screen(self):
+            
+    	# store as file in folder
+        ret, frame = self.capture.read()
+        DIR = './gallery'
+        images = [name for name in os.listdir(DIR) if os.path.isfile(os.path.join(DIR, name))]
+        count = len(images)
+        while 'capture{}.jpg'.format(count) in images:
+                count+=1
+        cv.imwrite('gallery/capture{}.jpg'.format(count), frame)
+
+        
+##        # store as blob in DB
+##        with open('gallery/capture{}.jpg'.format(count), "rb") as file:
+##                bData = file.read()
+##                
+##        sqlStatment = "INSERT INTO capture (photo) VALUES (%s)"
+##        cursor.execute(sqlStatment, (bData, ))
+##        connection.commit()
+
+    # Capturing and saving videos.
+    
+    def capture_video(self):
+
+        # Create an object to read 
+        # from camera
+        
+        # We need to set resolutions.
+        # so, convert them from float to integer.
+        frame_width = int(self.capture.get(3))
+        frame_height = int(self.capture.get(4))
+   
+           
+        size = (frame_width, frame_height)
+           
+        # Below VideoWriter object will create
+        # a frame of above defined The output 
+        # is stored in 'filename.avi' file.
+
+        DIR = './gallery'
+        images = [name for name in os.listdir(DIR) if os.path.isfile(os.path.join(DIR, name))]
+        count = len(images)
+        while 'capture{}.avi'.format(count) in images:
+                count+=1
+
+
+
+        result = cv.VideoWriter('gallery/capture{}.avi'.format(count), 
+                                 cv.VideoWriter_fourcc(*'MJPG'),
+                                 10, size)
+            
+        while True:
+                
+            ret, frame = self.capture.read()
+          
+            if ret == True:
+          
+                # Write the frame into the
+                # file 'filename.avi'
+                result.write(frame)
+          
+                # Display the frame
+                # saved in the file
+                cv.imshow('Video Capture', frame)
+          
+                # Press S on keyboard 
+                # to stop the process
+                if cv.waitKey(1) & 0xFF == ord('q'):
+                    break
+          
+            # Break the loop
+            else:
+                break
+          
+        # When everything done, release 
+        # the video capture and video 
+        # write objects
+        
+        #video.release()
+        result.release()
+
+        # Destroy all the windows
+        cv.destroyAllWindows()
+        self.triger(self.update_cam)
+
+
+    def save_face(self):
+        pass
+
+
+    # Image Segmentation Filter: Apply image segmentation filter
+
     def glasses(self, dt):
         
         #Changed to image segmentation using thersholding
@@ -269,223 +501,9 @@ class HomeScreen(Screen):
         	#self.have_face = True
            
 
-    def detect_faces(self, dt):
-        ret, frame = self.capture.read()
-        frame = cv.resize(frame, (1090, 720), interpolation = cv.INTER_AREA)
-        
-        
-       
-        # gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-        # faces = face_cascade.detectMultiScale(gray,
-                                             # scaleFactor=1.1,
-                                             # minNeighbors=10,
-                                             # minSize=(100, 100),
-                                             # flags=cv.CASCADE_SCALE_IMAGE)
 
-        # for (x,y,w,h) in faces:
-            # cv.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
-
-        mp_drawing = mp.solutions.drawing_utils
-        mp_holistic = mp.solutions.holistic
-        
-        
-        def draw_landmarks(image, results):
-            # Pose
-            mp_drawing.draw_landmarks(
-                image, 
-                results.pose_landmarks,
-                mp_holistic.POSE_CONNECTIONS,
-                mp_drawing.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
-                mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
-            )
-        
-        def mediapipe_detection(frame, model):
-            frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB) # works on RGB not BGR
-            frame.flags.writeable = False # To improve performance can work without it
-            results = model.process(frame) 
-            frame.flags.writeable = True
-            frame = cv.cvtColor(frame, cv.COLOR_RGB2BGR) # Back to BGR
-            return frame, results
-
-        
-        with mp_holistic.Holistic() as holistic:
-
-            h, w, _ = frame.shape
-
-            frame, results = mediapipe_detection(frame, holistic)
-            
-            # Draw landmarks
-            draw_landmarks(frame, results)
-            
-            # Draw Rectangle around the face
-            padding = 30
-            start_point = (int(results.pose_landmarks.landmark[6].x * w)-padding, int(results.pose_landmarks.landmark[6].y * h)-padding)
-            end_point = (int(results.pose_landmarks.landmark[9].x * w)+padding, int(results.pose_landmarks.landmark[9].y * h)+padding)
-            # We multiply by w and h to use the real x and y of the frame
-            
-            if(results.pose_landmarks.landmark[0]):
-                cv.rectangle(frame, start_point, end_point, (255, 0, 0) , 2)
-
-
-        buf = cv.flip(frame, 0)
-        buf = buf.tobytes()
-        texture_f = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
-        texture_f.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-        # display image from the texture
-        self.ids.cam.texture = texture_f
-
-
- 		# testing
-        #if len(faces) != 0:
-        	
-        	#self.have_face = True
-
-
-    def identify_faces(self, dt):
-        ret, frame = self.capture.read()
-        frame = cv.resize(frame, (1090, 720), interpolation = cv.INTER_AREA)
-        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray,
-                                             scaleFactor=1.1,
-                                             minNeighbors=10,
-                                             minSize=(100, 100),
-                                             flags=cv.CASCADE_SCALE_IMAGE)
-        rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-        # the facial embeddings for face in input
-        encodings = face_recognition.face_encodings(rgb)
-        names = []
-
-        # testing
-        if len(faces) != 0:
-        	self.have_face = True
-
-        for encoding in encodings:
-            matches = face_recognition.compare_faces(faces_data["encodings"], encoding)
-            name = "Unknown"
-
-            if True in matches:
-
-                #Find positions at which we get True and store them
-                matched_idxs = [i for (i, b) in enumerate(matches) if b]
-                counts = {}
-				# testing
-                self.saved_face = True
-
-
-                # loop over the matched indexes and maintain a count for each recognized face face
-                for i in matched_idxs:
-                    #Check the names at respective indexes we stored in matched_idxs
-                    name = faces_data["names"][i]
-                    #increase count for the name we got
-                    counts[name] = counts.get(name, 0) + 1
-                #set name which has highest count
-                name = max(counts, key=counts.get)
- 
-            # update the list of names
-            names.append(name)
-            # loop over the recognized faces
-            for (x, y, w, h), name in zip(faces, names):
-                # draw the predicted face name on the image
-                cv.rectangle(frame, (x, y),(x+w, y+h),(0,255,0),2)
-                cv.rectangle(frame, (x-10, y+h),(x+w+10, y+int(h*1.15)),(0,255,0), -1)
-                cv.putText(frame, name, (x-5, y+int(h*1.11)), cv.FONT_HERSHEY_SIMPLEX, w/250, (255, 255, 255), 2)
-
-        buf = cv.flip(frame, 0)
-        buf = buf.tobytes()
-        texture_f = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr') 
-        texture_f.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-        # display image from the texture
-        self.ids.cam.texture = texture_f 
-
-
-    def capture_screen(self):
-            
-    	# store as file in folder
-        ret, frame = self.capture.read()
-        DIR = './gallery'
-        images = [name for name in os.listdir(DIR) if os.path.isfile(os.path.join(DIR, name))]
-        count = len(images)
-        while 'capture{}.jpg'.format(count) in images:
-                count+=1
-        cv.imwrite('gallery/capture{}.jpg'.format(count), frame)
-
-        
-##        # store as blob in DB
-##        with open('gallery/capture{}.jpg'.format(count), "rb") as file:
-##                bData = file.read()
-##                
-##        sqlStatment = "INSERT INTO capture (photo) VALUES (%s)"
-##        cursor.execute(sqlStatment, (bData, ))
-##        connection.commit()
-
-
-    def capture_video(self):
-
-        # Create an object to read 
-        # from camera
-        
-        # We need to set resolutions.
-        # so, convert them from float to integer.
-        frame_width = int(self.capture.get(3))
-        frame_height = int(self.capture.get(4))
-   
-           
-        size = (frame_width, frame_height)
-           
-        # Below VideoWriter object will create
-        # a frame of above defined The output 
-        # is stored in 'filename.avi' file.
-
-        DIR = './gallery'
-        images = [name for name in os.listdir(DIR) if os.path.isfile(os.path.join(DIR, name))]
-        count = len(images)
-        while 'capture{}.avi'.format(count) in images:
-                count+=1
-
-
-
-        result = cv.VideoWriter('gallery/capture{}.avi'.format(count), 
-                                 cv.VideoWriter_fourcc(*'MJPG'),
-                                 10, size)
-            
-        while True:
-                
-            ret, frame = self.capture.read()
-          
-            if ret == True:
-          
-                # Write the frame into the
-                # file 'filename.avi'
-                result.write(frame)
-          
-                # Display the frame
-                # saved in the file
-                cv.imshow('Video Capture', frame)
-          
-                # Press S on keyboard 
-                # to stop the process
-                if cv.waitKey(1) & 0xFF == ord('q'):
-                    break
-          
-            # Break the loop
-            else:
-                break
-          
-        # When everything done, release 
-        # the video capture and video 
-        # write objects
-        
-        #video.release()
-        result.release()
-
-        # Destroy all the windows
-        cv.destroyAllWindows()
-        self.triger(self.update_cam)
-
-
-    def save_face(self):
-        pass
-
+    #  Style transfer: Can take a photo from the user and a photo that he/she wishes to merge together to add a 
+    #  custom effect or its style to his/her photo.
 
     def style_transfer(self, dt):
 
@@ -649,7 +667,8 @@ class HomeScreen(Screen):
         self.triger(self.update_cam)
 
 
-
+    #  Painter: We use a pencil to write on the screen
+    
     def painter(self, dt):
         ret, frame = self.capture.read()
         frame = cv.resize(frame, (1090, 720), interpolation = cv.INTER_AREA)
@@ -750,6 +769,9 @@ class HomeScreen(Screen):
         texture_f.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         # display image from the texture
         self.ids.cam.texture = texture_f
+
+    
+    # Update Identifier: save his/her picture in the faces pickle file for further identification
 
     
     def update_faces_data(self):

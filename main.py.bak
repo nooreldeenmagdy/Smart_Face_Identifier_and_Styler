@@ -75,7 +75,7 @@ mustache = cv.imread('filters/mustache.png',-1)
 # Painter globals
 # Define the upper and lower boundaries for a color to be considered "Blue"
 blue_lower = np.array([100, 60, 60])
-blue_upper = np.array([120, 255, 255])
+blue_upper = np.array([140, 255, 255])
 # Define a 5x5 kernel for erosion and dilation
 kernel = np.ones((5, 5), np.uint8)
 # Setup deques to store separate colors in separate arrays
